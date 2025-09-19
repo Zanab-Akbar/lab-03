@@ -1,95 +1,68 @@
 package com.example.listycity3;
 
-import android.annotation.SuppressLint;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.ListView;
 
-// ▼ NEW imports
-import android.app.AlertDialog;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.Toast;
-
-import androidx.activity.EdgeToEdge;
-import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.graphics.Insets;
-import androidx.core.view.ViewCompat;
-import androidx.core.view.WindowInsetsCompat;
+
+import com.example.listycity3.AddCityFragment;
+import com.example.listycity3.City;
+import com.example.listycity3.CityArrayAdapter;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 
-public class MainActivity extends AppCompatActivity {
-    ListView cityList;
-    ArrayAdapter<String> cityAdapter;
-    ArrayList<String> dataList;
+public class MainActivity extends AppCompatActivity
+        implements AddCityFragment.AddCityDialogListener {
 
-    // ▼ NEW fields
-    Button addBtn, deleteBtn;
-    int selectedPosition = -1;
+    private ArrayList<City> dataList;
+    private CityArrayAdapter cityAdapter;
+    private ListView cityList;
 
     @Override
-    protected void onCreate(@Nullable Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        cityList = findViewById(R.id.city_list);
-
-        String []cities = {"Edmonton", "Vancouver", "Moscow", "Sydney", "Berlin", "Vienna", "Beijing", "Tokyo", "Osaka", "New Delhi"};
+        // Seed data
+        String[] cities    = {"Edmonton", "Vancouver", "Toronto"};
+        String[] provinces = {"AB", "BC", "ON"};
 
         dataList = new ArrayList<>();
-        dataList.addAll(Arrays.asList(cities));
+        for (int i = 0; i < cities.length; i++) {
+            dataList.add(new City(cities[i], provinces[i]));
+        }
 
-        // (YOUR ORIGINAL LINE — kept)
-        cityAdapter = new ArrayAdapter<>(this, R.layout.content, dataList);
+        cityList = findViewById(R.id.city_list);
+        cityAdapter = new CityArrayAdapter(this, dataList);
         cityList.setAdapter(cityAdapter);
 
-        // ▼ NEW: reassign adapter so it knows which TextView in content.xml to use
-        // (keeps your original code, but correctly targets R.id.content_view)
-        cityAdapter = new ArrayAdapter<>(this, R.layout.content, R.id.content_view, dataList);
-        cityList.setAdapter(cityAdapter);
+        // ADD: FAB opens dialog to add a new city
+        FloatingActionButton fab = findViewById(R.id.button_add_city);
+        fab.setOnClickListener(v ->
+                AddCityFragment.newAddInstance()
+                        .show(getSupportFragmentManager(), "Add City"));
 
-        // ▼ NEW: wire buttons (must exist in your activity_main.xml)
-        addBtn = findViewById(R.id.btn_add);
-        deleteBtn = findViewById(R.id.btn_delete);
-
-        // ▼ NEW: remember which item is tapped (for deletion)
-        cityList.setOnItemClickListener((parent, view, position, id) -> selectedPosition = position);
-
-        // ▼ NEW: ADD CITY → prompt → CONFIRM
-        addBtn.setOnClickListener(v -> {
-            final EditText input = new EditText(this);
-            input.setHint("City name");
-
-            new AlertDialog.Builder(this)
-                    .setTitle("Add City")
-                    .setView(input)
-                    .setPositiveButton("CONFIRM", (dialog, which) -> {
-                        String name = input.getText().toString().trim();
-                        if (name.isEmpty()) {
-                            Toast.makeText(this, "City name cannot be empty.", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
-                        dataList.add(name);
-                        cityAdapter.notifyDataSetChanged();
-                        cityList.smoothScrollToPosition(dataList.size() - 1);
-                    })
-                    .setNegativeButton("CANCEL", null)
-                    .show();
+        // EDIT: tap a row to edit that city
+        cityList.setOnItemClickListener((AdapterView<?> parent, View view, int position, long id) -> {
+            City selected = dataList.get(position);
+            AddCityFragment.newEditInstance(selected, position)
+                    .show(getSupportFragmentManager(), "Edit City");
         });
+    }
 
-        // ▼ NEW: DELETE CITY → remove selected item
-        deleteBtn.setOnClickListener(v -> {
-            if (selectedPosition >= 0 && selectedPosition < dataList.size()) {
-                dataList.remove(selectedPosition);
-                cityAdapter.notifyDataSetChanged();
-                selectedPosition = -1; // clear selection
-            } else {
-                Toast.makeText(this, "Tap a city first to select it.", Toast.LENGTH_SHORT).show();
-            }
-        });
+    // ----- Dialog callbacks -----
+    @Override
+    public void addCity(City city) {
+        cityAdapter.add(city);
+        cityAdapter.notifyDataSetChanged();
+    }
+
+    @Override
+    public void updateCity(int index, City updatedCity) {
+        dataList.set(index, updatedCity);
+        cityAdapter.notifyDataSetChanged();
     }
 }
